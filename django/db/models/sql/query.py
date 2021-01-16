@@ -9,9 +9,7 @@ all about the internals of models in order to get the information it needs.
 import copy
 import difflib
 import functools
-import inspect
 import sys
-import warnings
 from collections import Counter, namedtuple
 from collections.abc import Iterator, Mapping
 from itertools import chain, count, product
@@ -37,7 +35,6 @@ from django.db.models.sql.datastructures import (
 from django.db.models.sql.where import (
     AND, OR, ExtraWhere, NothingNode, WhereNode,
 )
-from django.utils.deprecation import RemovedInDjango40Warning
 from django.utils.functional import cached_property
 from django.utils.hashable import make_hashable
 from django.utils.tree import Node
@@ -1969,15 +1966,6 @@ class Query(BaseExpression):
         errors = []
         for item in ordering:
             if isinstance(item, str):
-                if '.' in item:
-                    warnings.warn(
-                        'Passing column raw column aliases to order_by() is '
-                        'deprecated. Wrap %r in a RawSQL expression before '
-                        'passing it to order_by().' % item,
-                        category=RemovedInDjango40Warning,
-                        stacklevel=3,
-                    )
-                    continue
                 if item == '?':
                     continue
                 if item.startswith('-'):
@@ -2038,19 +2026,9 @@ class Query(BaseExpression):
         group_by = list(self.select)
         if self.annotation_select:
             for alias, annotation in self.annotation_select.items():
-                signature = inspect.signature(annotation.get_group_by_cols)
-                if 'alias' not in signature.parameters:
-                    annotation_class = annotation.__class__
-                    msg = (
-                        '`alias=None` must be added to the signature of '
-                        '%s.%s.get_group_by_cols().'
-                    ) % (annotation_class.__module__, annotation_class.__qualname__)
-                    warnings.warn(msg, category=RemovedInDjango40Warning)
-                    group_by_cols = annotation.get_group_by_cols()
-                else:
-                    if not allow_aliases or alias in column_names:
-                        alias = None
-                    group_by_cols = annotation.get_group_by_cols(alias=alias)
+                if not allow_aliases or alias in column_names:
+                    alias = None
+                group_by_cols = annotation.get_group_by_cols(alias=alias)
                 group_by.extend(group_by_cols)
         self.group_by = tuple(group_by)
 

@@ -9,9 +9,7 @@ from django.contrib.messages.storage.cookie import (
 )
 from django.core.signing import get_cookie_signer
 from django.test import SimpleTestCase, override_settings
-from django.test.utils import ignore_warnings
 from django.utils.crypto import get_random_string
-from django.utils.deprecation import RemovedInDjango40Warning
 from django.utils.safestring import SafeData, mark_safe
 
 from .base import BaseTests
@@ -181,17 +179,6 @@ class CookieTests(BaseTests, SimpleTestCase):
         self.assertIsInstance(encode_decode(mark_safe("<b>Hello Django!</b>")), SafeData)
         self.assertNotIsInstance(encode_decode("<b>Hello Django!</b>"), SafeData)
 
-    def test_legacy_hash_decode(self):
-        # RemovedInDjango40Warning: pre-Django 3.1 hashes will be invalid.
-        storage = self.storage_class(self.get_request())
-        messages = ['this', 'that']
-        # Encode/decode a message using the pre-Django 3.1 hash.
-        encoder = MessageEncoder()
-        value = encoder.encode(messages)
-        encoded_messages = '%s$%s' % (storage._legacy_hash(value), value)
-        decoded_messages = storage._decode(encoded_messages)
-        self.assertEqual(messages, decoded_messages)
-
     def test_legacy_encode_decode(self):
         # RemovedInDjango41Warning: pre-Django 3.2 encoded messages will be
         # invalid.
@@ -204,14 +191,3 @@ class CookieTests(BaseTests, SimpleTestCase):
         encoded_messages = signer.sign(value)
         decoded_messages = storage._decode(encoded_messages)
         self.assertEqual(messages, decoded_messages)
-
-    @ignore_warnings(category=RemovedInDjango40Warning)
-    def test_default_hashing_algorithm(self):
-        messages = Message(constants.DEBUG, ['this', 'that'])
-        with self.settings(DEFAULT_HASHING_ALGORITHM='sha1'):
-            storage = self.get_storage()
-            encoded = storage._encode(messages)
-            decoded = storage._decode(encoded)
-            self.assertEqual(decoded, messages)
-        storage_default = self.get_storage()
-        self.assertNotEqual(encoded, storage_default._encode(messages))
